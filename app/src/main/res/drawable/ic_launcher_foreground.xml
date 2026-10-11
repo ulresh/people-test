@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- голова -->
+    <path
+        android:fillColor="#FFCA28"
+        android:pathData="M45,30 a9,9 0 1,0 18,0 a9,9 0 1,0 -18,0 Z" />
+    <!-- глаза и рот -->
+    <path
+        android:fillColor="#263238"
+        android:pathData="M49,28 a1.5,1.5 0 1,0 3,0 a1.5,1.5 0 1,0 -3,0 Z M56,28 a1.5,1.5 0 1,0 3,0 a1.5,1.5 0 1,0 -3,0 Z" />
+    <path
+        android:pathData="M51,33 Q54,35.5 57,33"
+        android:strokeColor="#263238"
+        android:strokeWidth="1.2"
+        android:strokeLineCap="round" />
+    <!-- корпус -->
+    <path
+        android:pathData="M54,40 V64"
+        android:strokeColor="#4FC3F7"
+        android:strokeWidth="6"
+        android:strokeLineCap="round" />
+    <!-- левая рука: поднята вверх, согнута в локте -->
+    <path
+        android:pathData="M54,44 L40,42 L33,30"
+        android:strokeColor="#81C784"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- правая рука: отведена в сторону и вниз -->
+    <path
+        android:pathData="M54,44 L68,50 L78,60"
+        android:strokeColor="#81C784"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- левая нога: шаг в сторону, ступня наружу -->
+    <path
+        android:pathData="M54,64 L43,74 L38,84 L31,84"
+        android:strokeColor="#FF8A65"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- правая нога: согнута в колене -->
+    <path
+        android:pathData="M54,64 L66,72 L64,84 L71,84"
+        android:strokeColor="#FF8A65"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>
