@@ -18,8 +18,6 @@ final class PoseDetector {
     private static final int MAX_PEOPLE = 6;
     private static final int ROW = 56;
     private static final float MIN_PERSON_SCORE = 0.25f;
-    /** Длинная сторона входа сети; размеры должны быть кратны 32. */
-    private static final int LONG_SIDE = 256;
 
     private final Interpreter interpreter;
     private final DataType inType;
@@ -27,30 +25,39 @@ final class PoseDetector {
     private int inW, inH;
     private ByteBuffer in;
 
-    PoseDetector(Context context) throws IOException {
+    /** Читает модель из assets; один буфер можно отдать нескольким интерпретаторам. */
+    static ByteBuffer loadModel(Context context) throws IOException {
         ByteBuffer buf = ByteBuffer.allocateDirect(16 << 20).order(ByteOrder.nativeOrder());
         try (InputStream is = context.getAssets().open(MODEL)) {
             byte[] chunk = new byte[64 << 10];
             for (int n; (n = is.read(chunk)) > 0; ) buf.put(chunk, 0, n);
         }
         buf.flip();
+        return buf;
+    }
+
+    /** @param threads число потоков внутри одного вызова сети */
+    PoseDetector(ByteBuffer model, int threads) {
         Interpreter.Options o = new Interpreter.Options();
-        o.setNumThreads(Math.max(1, Math.min(4, Runtime.getRuntime().availableProcessors())));
-        interpreter = new Interpreter(buf, o);
+        o.setNumThreads(threads);
+        interpreter = new Interpreter(model.duplicate().order(ByteOrder.nativeOrder()), o);
         inType = interpreter.getInputTensor(0).dataType();
     }
 
-    /** Размер входа сети для кадра заданных пропорций. */
-    static int[] inputSize(int frameW, int frameH) {
-        float k = (float) LONG_SIDE / Math.max(frameW, frameH);
+    /** Размер входа сети (кратен 32) для кадра заданных пропорций и длинной стороны longSide. */
+    static int[] inputSize(int frameW, int frameH, int longSide) {
+        float k = (float) longSide / Math.max(frameW, frameH);
         int w = Math.max(32, Math.round(frameW * k / 32f) * 32);
         int h = Math.max(32, Math.round(frameH * k / 32f) * 32);
         return new int[]{w, h};
     }
 
-    /** argb — кадр размером fw×fh; он сжимается до входа сети. */
-    List<Person> detect(int[] argb, int fw, int fh) {
-        int[] sz = inputSize(fw, fh);
+    /** Время последнего вызова самой сети, мс. */
+    long lastInferMs;
+
+    /** argb — кадр размером fw×fh; он сжимается до входа сети с длинной стороной longSide. */
+    List<Person> detect(int[] argb, int fw, int fh, int longSide) {
+        int[] sz = inputSize(fw, fh, longSide);
         if (in == null || sz[0] != inW || sz[1] != inH) {
             inW = sz[0];
             inH = sz[1];
@@ -75,7 +82,9 @@ final class PoseDetector {
             }
         }
         in.rewind();
+        long t0 = System.nanoTime();
         interpreter.run(in, out);
+        lastInferMs = (System.nanoTime() - t0) / 1_000_000L;
 
         List<Person> res = new ArrayList<>();
         for (int i = 0; i < MAX_PEOPLE; i++) {

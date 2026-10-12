@@ -36,6 +36,7 @@ import java.util.List;
 
 public class MainActivity extends Activity implements Pipeline.Host {
     private static final int REQ_PERMISSIONS = 1;
+    private static final int[] INPUT_SIDES = {64, 96, 128, 160, 192, 256};
 
     private static final class Cam {
         String id;
@@ -59,7 +60,7 @@ public class MainActivity extends Activity implements Pipeline.Host {
 
     private FrameView frameView;
     private FigureView figureView;
-    private Spinner spCamera, spSize, spFps;
+    private Spinner spCamera, spSize, spFps, spInput, spWorkers, spThreads;
     private Switch swOverlay;
     private TextView tvProcessed, tvStatus;
 
@@ -125,6 +126,22 @@ public class MainActivity extends Activity implements Pipeline.Host {
         spCamera = addSpinner(panel, "Камера");
         spSize = addSpinner(panel, "Разрешение");
 
+        spInput = addSpinner(panel, "Размер входа сети (длинная сторона)");
+        String[] inLabels = new String[INPUT_SIDES.length];
+        for (int i = 0; i < INPUT_SIDES.length; i++) inLabels[i] = INPUT_SIDES[i] + " пикселей";
+        spInput.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, inLabels));
+        spInput.setSelection(prefs.getInt("input", 2));
+
+        int cores = Math.max(1, Runtime.getRuntime().availableProcessors());
+        String[] counts = new String[cores];
+        for (int i = 0; i < cores; i++) counts[i] = String.valueOf(i + 1);
+        spWorkers = addSpinner(panel, "Кадров обрабатывается одновременно");
+        spWorkers.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, counts));
+        spWorkers.setSelection(Math.min(cores - 1, prefs.getInt("workers", 0)));
+        spThreads = addSpinner(panel, "Потоков на один кадр");
+        spThreads.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, counts));
+        spThreads.setSelection(Math.min(cores - 1, prefs.getInt("threads", 0)));
+
         addLabel(panel, "Частота кадров и доля обработанных кадров");
         LinearLayout fpsRow = new LinearLayout(this);
         fpsRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -132,8 +149,9 @@ public class MainActivity extends Activity implements Pipeline.Host {
         spFps = new Spinner(this);
         fpsRow.addView(spFps, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         tvProcessed = new TextView(this);
+        tvProcessed.setTextSize(13);
         tvProcessed.setPadding(dp(8), 0, 0, 0);
-        fpsRow.addView(tvProcessed);
+        fpsRow.addView(tvProcessed, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         panel.addView(fpsRow);
 
         swOverlay = new Switch(this);
@@ -168,7 +186,7 @@ public class MainActivity extends Activity implements Pipeline.Host {
             public void onNothingSelected(AdapterView<?> p) {
             }
         };
-        for (Spinner sp : new Spinner[]{spCamera, spSize, spFps}) sp.setOnItemSelectedListener(l);
+        for (Spinner sp : new Spinner[]{spCamera, spSize, spFps, spInput, spWorkers, spThreads}) sp.setOnItemSelectedListener(l);
 
         ScrollView scroll = new ScrollView(this);
         scroll.addView(panel);
@@ -360,6 +378,9 @@ public class MainActivity extends Activity implements Pipeline.Host {
         s.cameraId = c.id;
         s.size = c.sizes.get(spSize.getSelectedItemPosition());
         s.fps = c.fps.get(spFps.getSelectedItemPosition());
+        s.inputSide = INPUT_SIDES[spInput.getSelectedItemPosition()];
+        s.workers = spWorkers.getSelectedItemPosition() + 1;
+        s.threads = spThreads.getSelectedItemPosition() + 1;
         int deg = displayDegrees();
         s.rotation = c.front ? (c.sensor + deg) % 360 : (c.sensor - deg + 360) % 360;
 
@@ -367,6 +388,9 @@ public class MainActivity extends Activity implements Pipeline.Host {
                 .putString("camera", c.id)
                 .putString("size", sizeLabel(s.size))
                 .putString("fps", fpsLabel(s.fps))
+                .putInt("input", spInput.getSelectedItemPosition())
+                .putInt("workers", spWorkers.getSelectedItemPosition())
+                .putInt("threads", spThreads.getSelectedItemPosition())
                 .apply();
 
         pipeline = new Pipeline(this, cameraHandler, s, this);
@@ -391,7 +415,8 @@ public class MainActivity extends Activity implements Pipeline.Host {
     }
 
     @Override
-    public void onStats(int percent, int avgMs) {
-        ui.post(() -> tvProcessed.setText(percent < 0 ? "" : "обработано " + percent + "% (" + avgMs + " мс/кадр)"));
+    public void onStats(int percent, int avgMs, int netMs) {
+        android.util.Log.i("people_stats", "processed=" + percent + " latency=" + avgMs + " net=" + netMs);
+        ui.post(() -> tvProcessed.setText(percent < 0 ? "" : "обработано " + percent + "%\n" + "задержка " + avgMs + " мс, сеть " + netMs + " мс"));
     }
 }
